@@ -1,12 +1,10 @@
 ---
-docname: draft-ietf-wish-whip-00
+docname: draft-murillo-whip-01
 title: WebRTC-HTTP ingestion protocol (WHIP)
 abbrev: whip
-category: std
-ipr: trust200902
-area: ART
-workgroup: wish
+category: info
 
+ipr: trust200902
 keyword: WebRTC
 
 stand_alone: yes
