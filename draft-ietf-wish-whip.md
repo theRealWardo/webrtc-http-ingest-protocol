@@ -1,5 +1,5 @@
 ---
-docname: draft-murillo-whip-01
+docname: draft-murillo-whip-02
 title: WebRTC-HTTP ingestion protocol (WHIP)
 abbrev: whip
 category: info
