@@ -28,6 +28,7 @@ normative:
   RFC7675:
   RFC8838:
   RFC8840:
+  RFC8853:
   RFC8863:
 
 --- abstract
@@ -55,6 +56,7 @@ While some standard signalling protocols are available that can be integrated wi
 In the specific case of ingest into a platform, some assumption can be made about the server-side which simplifies the webrtc compliance burden, as detailed in webrtc-gateway document {{!I-D.draft-alvestrand-rtcweb-gateways}}.
 
 This document proposes a simple protocol for supporting WebRTC as ingest method which is:
+
 - Easy to implement,
 - As easy to use as current RTMP URIs.
 - Fully compliant with Webrtc and RTCWEB specs.
@@ -68,8 +70,10 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 - WHIP client: WebRTC Media encoder or producer that acts as client on the WHIP protocol and encodes and delivers the media to a remote media server.
 - WHIP endpoint: Ingest server receiving the initial WHIP request.
+- WHIP endpoint URL: URL of the WHIP endpoint that will create the WHIP resource
 - Media Server: WebRTC media server that establishes the media session with the WHIP client and receives the media produced by it.
-- WHIP Resource: Allocated resource by the WHIP endpoint for an ongoing ingest session that the WHIP client can send request for altering the session (ICE operations or termination, for example).
+- WHIP resource: Allocated resource by the WHIP endpoint for an ongoing ingest session that the WHIP client can send request for altering the session (ICE operations or termination, for example).
+- WHIP resource URL: URL allocated to a specific media session by the WHIP endpoint which can be used to perform operations such terminating the session or ICE restarts.
 
 
 # Overview
@@ -117,7 +121,11 @@ Once a session is setup ICE consent freshness {{!RFC7675}} will be used to detec
 
 To explicitly terminate the session, the WHIP client MUST perform an HTTP DELETE request to the resource url returned on the Location header of the initial HTTP POST. Upon receiving the HTTP DELETE request, the WHIP resource will be removed and the resources freed on the media server, terminating the ICE and DTLS sessions.
 
-The media server may terminate the session by using the Immediate Revocation of Consent as defined in {{!RFC7675}} section 5.2.
+A media server terminating a session MUST follow the procedures in {{!RFC7675}} section 5.2 for immediate revocation of consent.
+
+The WHIP endpoints MUST return an HTTP 405 response for any HTTP GET, HEAD or PUT requests on the resource URL in order to reserve its usage for future versions of this protocol specification.
+
+The WHIP resources MUST return an HTTP 405 response for any HTTP GET, HEAD, POST or PUT requests on the resource URL in order to reserve its usage for future versions of this protocol specification.
 
 ## ICE and NAT support
 
@@ -147,13 +155,45 @@ In case of high load, the WHIP endpoints may return a 503 (Service Unavailable) 
 
 The WHIP endpoint MAY send a Retry-After header field indicating the minimum time that the user agent is asked to wait before issuing the redirected request.
 
+## STUN/TURN server configuration
+
+Configuration of the TURN or STUN servers used by the WHIP client is out of the scope of this document.
+
+It is RECOMMENDED that broadcasting server provides an HTTP interface for provisioning the TUNR/STUN servers url and short term credentiasl as in {{!I-D.draft-uberti-behave-turn-rest-00}}. Note that the authentication information or the url of this API are not related to the WHIP enpoint URLs or authentication.
+
+It could also be possilble to configure the STUN/TURN server URLS and long term credentials provided by the either broadcasting service or an external TURN provider.
+
 ## Authentication and authorization
 
 Authentication and authorization is supported by the Authorization HTTP header with a bearer token as per {{!RFC6750}}.
 
 ## Simulcast and scalable video coding
 
-Both simulcast and scalable video coding (including K-SVC modes) MAY be supported by both media servers and WHIP clients.
+Both simulcast and scalable video coding (including K-SVC modes) MAY be supported by both media servers and WHIP clients and negotiated in the SDP O/A.
+
+If the client supports simulcast and wants to enable it for publishing, it MUST negotiate the support in the SDP offer according to the procedures in {{!RFC8853}} section 5.3. A server accepting a simulcast offer MUST create an answer accoding to the procedures {{!RFC8853}} section 5.3.2.
+
+## Protocol extensions
+
+In order to support future extensions to be defined for the WHIP protocol, a common procedure for registering and announcing the new extensions is defined.
+
+Protocol extensions supported by the WHIP server MUST be advertised to the WHIP client on the 201 created response to initial HTTP POST request to the WHIP enpoint by inserting one Link header for each extension with the extension "rel" type attribute and the uri for the HTTP resource that will be available for receiving request related to that extension.
+
+Protocol extensions are optionasl for bot WHIP clients and servers. WHIP clients MUST ignore any Link attribute with an unknown "rel" attribute value and WHIP servers MUST not require the usage of any of the extensions.
+
+Each protocol extension MUST register an unique "rel" attribute values at IANA starting with the prefix: "urn:ietf:params:whip:".
+
+For example, taking a potential extension of server to client communication using server sent events as specified in https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events, the url for connecting to the server side event resource for the published stream will be returned in the initial HTTP "201 Created" response with a "Link" header an a "rel" attribute of  "urn:ietf:params:whip:server-sent-events".
+
+The HTTP 201 response to the HTTP POST request would look like:
+
+```
+HTTP/1.1 201 Created
+Content-Type: application/sdp
+Location: https://whip.ietf.org/publications/213786HF
+Link: <https://whip.ietf.org/publications/213786HF/sse>;rel="urn:ietf:params:whip:server-side-events "
+```
+
 
 # Security Considerations
 
